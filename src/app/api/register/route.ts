@@ -9,14 +9,21 @@ let kv: any;
 let registrations: Map<string, any>;
 
 // Inicializar el storage apropiado
-if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN && 
-    process.env.KV_REST_API_URL !== 'https://dummy-url-for-local-dev.upstash.io') {
+// Usar Vercel KV si las variables están disponibles y no son dummy values
+const isProduction = process.env.KV_REST_API_URL && 
+                    process.env.KV_REST_API_TOKEN && 
+                    !process.env.KV_REST_API_URL.includes('dummy') &&
+                    !process.env.KV_REST_API_URL.includes('localhost');
+
+if (isProduction) {
   // Producción: usar Vercel KV
   const { kv: vercelKv } = require('@vercel/kv');
   kv = vercelKv;
+  console.log('🚀 Using Vercel KV for storage');
 } else {
   // Desarrollo local: usar Map en memoria
   registrations = new Map();
+  console.log('💾 Using in-memory storage for development');
   kv = {
     async get(key: string) {
       if (key.startsWith('registration:dni:')) {
