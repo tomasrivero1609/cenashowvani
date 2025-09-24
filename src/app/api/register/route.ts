@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { generateMultipleFlyers, FlyerData } from '@/lib/flyerGenerator';
 
 // Para desarrollo local, usamos Map en memoria
 // En producción con Vercel KV, se usará la base de datos real
@@ -64,107 +65,160 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: NextRequest) {
   try {
-    const { nombre, telefono, dni, email } = await request.json();
+    const { compradorNombre, compradorEmail, compradorTelefono, invitados } = await request.json();
 
     // Validación básica
-    if (!nombre || !telefono || !dni || !email) {
+    if (!compradorNombre || !compradorEmail || !invitados || !Array.isArray(invitados) || invitados.length === 0) {
       return NextResponse.json(
-        { error: 'Todos los campos son requeridos' },
+        { error: 'Datos del comprador e invitados son requeridos' },
         { status: 400 }
       );
     }
 
-    // Verificar si ya existe un registro con este DNI
-    const existingRegistration = await kv.get(`registration:dni:${dni}`);
-    if (existingRegistration) {
-      return NextResponse.json(
-        { error: 'Ya existe un registro con este DNI' },
-        { status: 409 }
-      );
+    // Validar que todos los invitados tengan nombre
+    for (const invitado of invitados) {
+      if (!invitado.nombre || invitado.nombre.trim() === '') {
+        return NextResponse.json(
+          { error: 'Todos los invitados deben tener nombre' },
+          { status: 400 }
+        );
+      }
     }
 
-    // Generar ID único para el registro
-    const registrationId = crypto.randomUUID();
+    // Generar ID único para la compra
+    const purchaseId = crypto.randomUUID();
+    const fechaCompra = new Date().toISOString();
     
-    // Crear datos del registro
-    const registrationData = {
-      id: registrationId,
-      nombre,
-      telefono,
-      dni,
-      email,
-      fechaRegistro: new Date().toISOString(),
-      evento: 'Cena Show Vani - 11 de Octubre 2024',
+    // Crear registros individuales para cada invitado
+    const registrations: any[] = [];
+    const qrCodes: { registrationId: string; qrCodeBuffer: Buffer; nombre: string; }[] = [];
+
+    for (let i = 0; i < invitados.length; i++) {
+      const invitado = invitados[i];
+      const registrationId = crypto.randomUUID();
+      
+      // Crear datos del registro individual
+      const registrationData = {
+        id: registrationId,
+        purchaseId, // ID de la compra grupal
+        nombre: invitado.nombre.trim(),
+        compradorNombre,
+        compradorEmail,
+        compradorTelefono: compradorTelefono || '',
+        fechaRegistro: fechaCompra,
+        evento: 'Cena Show Vani - 11 de Octubre 2024',
+        numeroInvitado: i + 1,
+        totalInvitados: invitados.length,
+      };
+
+      // Generar código QR individual
+      const qrData = `CENA-SHOW-VANI-${registrationId}`;
+      const qrCodeBuffer = await QRCode.toBuffer(qrData, {
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+        width: 256,
+      });
+
+      // Guardar el registro individual
+      await kv.set(`registration:id:${registrationId}`, registrationData);
+      
+      registrations.push(registrationData);
+      qrCodes.push({
+        registrationId,
+        qrCodeBuffer,
+        nombre: invitado.nombre.trim(),
+      });
+    }
+
+    // Guardar información de la compra grupal
+    const purchaseData = {
+      id: purchaseId,
+      compradorNombre,
+      compradorEmail,
+      compradorTelefono: compradorTelefono || '',
+      fechaCompra,
+      totalInvitados: invitados.length,
+      registrationIds: registrations.map(r => r.id),
     };
+    
+    await kv.set(`purchase:${purchaseId}`, purchaseData);
 
-    // Generar código QR solo con el ID de registro
-    const qrData = `CENA-SHOW-VANI-${registrationId}`;
+    // Generar flyers horizontales para cada invitado
+    const flyerDataList: FlyerData[] = registrations.map(reg => ({
+      nombre: reg.nombre,
+      registrationId: reg.id,
+      numeroInvitado: reg.numeroInvitado,
+      totalInvitados: reg.totalInvitados,
+      compradorNombre: reg.compradorNombre,
+    }));
 
-    const qrCodeBuffer = await QRCode.toBuffer(qrData, {
-      errorCorrectionLevel: 'M',
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF',
-      },
-      width: 256,
-    });
+    let flyerBuffers: Buffer[] = [];
+    try {
+      flyerBuffers = await generateMultipleFlyers(flyerDataList);
+    } catch (error) {
+      console.error('Error generando flyers:', error);
+      // Continuar sin flyers si hay error
+    }
 
-    // Guardar el registro en Vercel KV
-    // Guardamos por DNI para verificar duplicados
-    await kv.set(`registration:dni:${dni}`, registrationData);
-    // Guardamos por ID para validación de QR
-    await kv.set(`registration:id:${registrationId}`, registrationData);
-
-    // Preparar el email
+    // Preparar el email con múltiples entradas
     const emailHTML = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>Confirmación Cena Show Vani</title>
+        <title>Entradas Cena Show Vani</title>
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
-          .qr-section { text-align: center; margin: 30px 0; }
-          .qr-code { max-width: 200px; border: 3px solid #667eea; border-radius: 10px; }
+          .ticket { background: white; margin: 20px 0; padding: 20px; border-radius: 10px; border-left: 5px solid #667eea; }
+          .qr-section { text-align: center; margin: 20px 0; }
+          .qr-code { max-width: 150px; border: 2px solid #667eea; border-radius: 8px; }
           .details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
           .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+          .whatsapp-tip { background: #25D366; color: white; padding: 15px; border-radius: 8px; margin: 20px 0; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
             <h1>🎭 Cena Show Vani</h1>
-            <h2>¡Confirmación de Registro!</h2>
+            <h2>¡Entradas Generadas!</h2>
           </div>
           
           <div class="content">
-            <p>Hola <strong>${nombre}</strong>,</p>
+            <p>Hola <strong>${compradorNombre}</strong>,</p>
             
-            <p>¡Gracias por registrarte para nuestra Cena Show! Tu entrada ha sido confirmada.</p>
+            <p>¡Gracias por tu compra! Se han generado <strong>${invitados.length} entrada${invitados.length > 1 ? 's' : ''}</strong> para la Cena Show.</p>
             
             <div class="details">
               <h3>📅 Detalles del Evento</h3>
               <p><strong>Fecha:</strong> 11 de Octubre de 2024</p>
               <p><strong>Evento:</strong> Cena Show Vani</p>
-              <p><strong>Nombre:</strong> ${nombre}</p>
-              <p><strong>DNI:</strong> ${dni}</p>
-              <p><strong>Teléfono:</strong> ${telefono}</p>
-              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Comprador:</strong> ${compradorNombre}</p>
+              <p><strong>Email:</strong> ${compradorEmail}</p>
+              ${compradorTelefono ? `<p><strong>Teléfono:</strong> ${compradorTelefono}</p>` : ''}
+              <p><strong>Total de entradas:</strong> ${invitados.length}</p>
             </div>
-            
-            <div class="qr-section">
-              <h3>📱 Tu Código QR de Entrada</h3>
-              <p>Presenta este código QR en la entrada del evento:</p>
-              <img src="cid:qrcode" alt="Código QR" class="qr-code" />
-              <p><small>ID de Registro: ${registrationId}</small></p>
+
+            ${qrCodes.map((qr, index) => `
+            <div class="ticket">
+              <h3>🎫 Entrada ${index + 1} - ${qr.nombre}</h3>
+              <div class="qr-section">
+                <img src="cid:qrcode${index}" alt="Código QR para ${qr.nombre}" class="qr-code" />
+                <p><strong>${qr.nombre}</strong></p>
+                <p><small>ID: ${qr.registrationId}</small></p>
+              </div>
             </div>
+            `).join('')}
             
             <div class="details">
-              <h3>✨ ¿Qué incluye tu entrada?</h3>
+              <h3>✨ ¿Qué incluye cada entrada?</h3>
               <ul>
                 <li>🍽️ Cena completa de 3 tiempos</li>
                 <li>🎭 Show en vivo</li>
@@ -172,22 +226,34 @@ export async function POST(request: NextRequest) {
                 <li>🎵 Música y entretenimiento</li>
               </ul>
             </div>
+
+            <div class="whatsapp-tip">
+               <h3>📱 Para compartir por WhatsApp</h3>
+               <p><strong>¡Importante!</strong> Cada persona debe presentar su código QR individual en la entrada.</p>
+               <p>🎨 <strong>¡NUEVO!</strong> Hemos incluido flyers horizontales optimizados para WhatsApp como archivos adjuntos.</p>
+               <p>Cada invitado tiene:</p>
+               <ul>
+                 <li>📧 Su código QR individual (para el email)</li>
+                 <li>🖼️ Su flyer horizontal personalizado (perfecto para WhatsApp)</li>
+               </ul>
+               <p><strong>Instrucciones:</strong></p>
+               <ol>
+                 <li>Descarga los archivos adjuntos de este email</li>
+                 <li>Envía el flyer correspondiente a cada invitado por WhatsApp</li>
+                 <li>Cada flyer ya incluye el QR code integrado</li>
+               </ol>
+               <p><strong>Mensaje sugerido para WhatsApp:</strong></p>
+               <p style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 5px; font-style: italic;">
+                 "¡Hola [Nombre]! Aquí tienes tu entrada para la Cena Show Vani del 11 de octubre. 
+                 Presenta este flyer en la entrada (tiene tu QR integrado). ¡Te esperamos! 🎭"
+               </p>
+             </div>
             
-            <p><strong>Importante:</strong> Guarda este email y presenta el código QR en la entrada del evento.</p>
-            
-            <div class="details">
-              <h3>📱 Para compartir por WhatsApp</h3>
-              <p>Puedes reenviar este email o compartir el código QR por WhatsApp con el invitado.</p>
-              <p><strong>Mensaje sugerido:</strong></p>
-              <p style="background: #f0f0f0; padding: 10px; border-radius: 5px; font-style: italic;">
-                "¡Hola ${nombre}! Aquí tienes tu confirmación para la Cena Show Vani del 11 de octubre. 
-                Presenta este código QR en la entrada. ¡Te esperamos! 🎭"
-              </p>
-            </div>
+            <p><strong>Importante:</strong> Cada invitado debe presentar su código QR individual en la entrada del evento.</p>
           </div>
           
           <div class="footer">
-            <p>¡Te esperamos para una noche inolvidable!</p>
+            <p>¡Los esperamos para una noche inolvidable!</p>
             <p>Cena Show Vani - 11 de Octubre de 2024</p>
           </div>
         </div>
@@ -198,18 +264,26 @@ export async function POST(request: NextRequest) {
     // Enviar email (solo si están configuradas las credenciales)
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
+        // Attachments: QR codes individuales + flyers horizontales
+        const qrAttachments = qrCodes.map((qr, index) => ({
+          filename: `entrada-${qr.nombre.replace(/\s+/g, '-')}-qr.png`,
+          content: qr.qrCodeBuffer,
+          cid: `qrcode${index}` // Content ID para referenciar en el HTML
+        }));
+
+        const flyerAttachments = flyerBuffers.map((buffer, index) => ({
+          filename: `flyer-${qrCodes[index].nombre.replace(/\s+/g, '-')}.png`,
+          content: buffer,
+        }));
+
+        const allAttachments = [...qrAttachments, ...flyerAttachments];
+
         await transporter.sendMail({
           from: `"Cena Show Vani" <${process.env.SMTP_USER}>`,
-          to: email, // Enviar directamente al email del invitado
-          subject: '🎭 Confirmación Cena Show Vani - 11 de Octubre',
+          to: compradorEmail,
+          subject: `🎭 ${invitados.length} Entrada${invitados.length > 1 ? 's' : ''} Cena Show Vani - 11 de Octubre`,
           html: emailHTML,
-          attachments: [
-            {
-              filename: 'qr-code.png',
-              content: qrCodeBuffer,
-              cid: 'qrcode' // Content ID para referenciar en el HTML
-            }
-          ]
+          attachments: allAttachments
         });
       } catch (emailError) {
         console.error('Error enviando email:', emailError);
@@ -219,9 +293,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: 'Registro exitoso',
-      registrationId,
-      qrCode: qrCodeBuffer.toString('base64'),
+      message: `${invitados.length} entrada${invitados.length > 1 ? 's' : ''} generada${invitados.length > 1 ? 's' : ''} exitosamente`,
+      purchaseId,
+      totalTickets: invitados.length,
+      registrations: registrations.map(r => ({
+        id: r.id,
+        nombre: r.nombre,
+        numeroInvitado: r.numeroInvitado,
+      })),
     });
 
   } catch (error) {
@@ -254,9 +333,12 @@ export async function GET(request: NextRequest) {
         valid: true,
         registration: {
           nombre: registration.nombre,
-          dni: registration.dni,
           evento: registration.evento,
           fechaRegistro: registration.fechaRegistro,
+          compradorNombre: registration.compradorNombre,
+          numeroInvitado: registration.numeroInvitado,
+          totalInvitados: registration.totalInvitados,
+          purchaseId: registration.purchaseId,
         },
       });
     }
