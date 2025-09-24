@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, registerFont } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import QRCode from 'qrcode';
 
 export interface FlyerData {
@@ -17,9 +17,6 @@ export async function generateHorizontalFlyer(data: FlyerData): Promise<Buffer> 
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // Configurar el modo de dibujo de texto para emojis
-  (ctx as any).textDrawingMode = 'glyph';
-
   // Fondo degradado
   const gradient = ctx.createLinearGradient(0, 0, width, height);
   gradient.addColorStop(0, '#667eea');
@@ -32,14 +29,14 @@ export async function generateHorizontalFlyer(data: FlyerData): Promise<Buffer> 
   ctx.lineWidth = 4;
   ctx.strokeRect(10, 10, width - 20, height - 20);
 
-  // Título del evento
+  // Título del evento - SIN EMOJIS, SOLO ARIAL
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
+  ctx.font = 'bold 36px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('🎭 CENA SHOW VANI', width / 2, 60);
+  ctx.fillText('CENA SHOW VANI', width / 2, 60);
 
   // Fecha del evento
-  ctx.font = 'bold 24px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
+  ctx.font = 'bold 24px Arial';
   ctx.fillText('11 de Octubre 2024', width / 2, 95);
 
   // Línea divisoria
@@ -50,23 +47,23 @@ export async function generateHorizontalFlyer(data: FlyerData): Promise<Buffer> 
   ctx.lineTo(width - 50, 120);
   ctx.stroke();
 
-  // Información del invitado (lado izquierdo)
+  // Información del invitado (lado izquierdo) - SIN EMOJIS
   ctx.textAlign = 'left';
-  ctx.font = 'bold 28px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
-  ctx.fillText('🎫 ENTRADA PERSONAL', 50, 160);
+  ctx.font = 'bold 28px Arial';
+  ctx.fillText('ENTRADA PERSONAL', 50, 160);
   
-  ctx.font = 'bold 24px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
-  ctx.fillText(`👤 ${data.nombre}`, 50, 200);
+  ctx.font = 'bold 24px Arial';
+  ctx.fillText(`INVITADO: ${data.nombre}`, 50, 200);
   
-  ctx.font = '18px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
+  ctx.font = '18px Arial';
   ctx.fillText(`Entrada ${data.numeroInvitado} de ${data.totalInvitados}`, 50, 230);
   ctx.fillText(`Comprador: ${data.compradorNombre}`, 50, 255);
 
-  // Información adicional
-  ctx.font = '16px Arial, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji"';
-  ctx.fillText('✨ Incluye: Cena completa + Show + Bebidas', 50, 290);
-  ctx.fillText('📱 Presenta este código QR en la entrada', 50, 315);
-  ctx.fillText(`🆔 ID: ${data.registrationId.substring(0, 8)}...`, 50, 340);
+  // Información adicional - SIN EMOJIS
+  ctx.font = '16px Arial';
+  ctx.fillText('Incluye: Cena completa + Show + Bebidas', 50, 290);
+  ctx.fillText('Presenta este codigo QR en la entrada', 50, 315);
+  ctx.fillText(`ID: ${data.registrationId.substring(0, 8)}...`, 50, 340);
 
   // Generar QR Code (lado derecho)
   const qrSize = 150;
