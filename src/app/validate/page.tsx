@@ -130,13 +130,13 @@ export default function ValidatePage() {
   };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
+    <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header minimalista */}
-      <div className="p-4 text-center">
+      <div className="p-4 text-center bg-gray-800">
         <h1 className="text-white text-xl font-bold">
           Validador de Entradas
         </h1>
-        <p className="text-gray-300 text-sm">
+        <p className="text-gray-200 text-sm">
           Tributo a Ricky Martin - 11 de Octubre 2025
         </p>
       </div>
@@ -149,15 +149,15 @@ export default function ValidatePage() {
             <div className="w-full max-w-lg aspect-square relative">
               <video
                 ref={videoRef}
-                className="w-full h-full object-cover rounded-lg"
+                className="w-full h-full object-cover rounded-lg border-2 border-gray-600"
                 style={{ display: isScanning ? 'block' : 'none' }}
               />
               
               {!isScanning && (
-                <div className="w-full h-full bg-gray-800 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-600">
-                  <div className="text-center text-gray-400">
+                <div className="w-full h-full bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-500">
+                  <div className="text-center text-gray-200">
                     <div className="text-6xl mb-4">📱</div>
-                    <p className="text-lg">Toca para escanear</p>
+                    <p className="text-xl font-medium">Toca para escanear</p>
                   </div>
                 </div>
               )}
@@ -168,14 +168,14 @@ export default function ValidatePage() {
               {!isScanning ? (
                 <button
                   onClick={startScanning}
-                  className="bg-blue-600 text-white py-4 px-8 rounded-full text-xl font-bold hover:bg-blue-700 transition-colors shadow-lg"
+                  className="bg-blue-600 text-white py-4 px-8 rounded-full text-xl font-bold hover:bg-blue-700 transition-colors shadow-lg border-2 border-blue-500"
                 >
                   📷 Iniciar Escáner
                 </button>
               ) : (
                 <button
                   onClick={stopScanning}
-                  className="bg-red-600 text-white py-4 px-8 rounded-full text-xl font-bold hover:bg-red-700 transition-colors shadow-lg"
+                  className="bg-red-600 text-white py-4 px-8 rounded-full text-xl font-bold hover:bg-red-700 transition-colors shadow-lg border-2 border-red-500"
                 >
                   ⏹️ Detener
                 </button>
@@ -184,9 +184,9 @@ export default function ValidatePage() {
 
             {/* Indicador de carga */}
             {isValidating && (
-              <div className="mt-4 text-white text-center">
+              <div className="mt-4 text-white text-center bg-gray-800 p-4 rounded-lg">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
-                <p>Validando entrada...</p>
+                <p className="text-lg font-medium">Validando entrada...</p>
               </div>
             )}
           </>
@@ -194,44 +194,44 @@ export default function ValidatePage() {
           /* Resultado en pantalla completa */
           <div className="w-full max-w-lg">
             {validationResult.valid ? (
-              <div className="bg-green-500 text-white rounded-lg p-8 text-center shadow-2xl">
+              <div className="bg-green-600 text-white rounded-lg p-8 text-center shadow-2xl border-4 border-green-400">
                 <div className="text-8xl mb-6">✅</div>
-                <h2 className="text-4xl font-bold mb-6">
+                <h2 className="text-4xl font-bold mb-6 text-white">
                   ACCESO PERMITIDO
                 </h2>
                 
                 {validationResult.registration && (
                   <div className="space-y-4">
                     {/* Información principal */}
-                    <div className="bg-green-600 rounded-lg p-4">
-                      <p className="text-3xl font-bold">{validationResult.registration.nombre}</p>
-                      <p className="text-green-100 text-lg">Entrada {validationResult.registration.numeroInvitado} de {validationResult.registration.totalInvitados}</p>
+                    <div className="bg-green-700 rounded-lg p-4 border-2 border-green-500">
+                      <p className="text-3xl font-bold text-white">{validationResult.registration.nombre}</p>
+                      <p className="text-green-100 text-lg font-medium">Entrada {validationResult.registration.numeroInvitado} de {validationResult.registration.totalInvitados}</p>
                     </div>
                     
                     {/* Mesa asignada - DESTACADA */}
-                    <div className="bg-white text-green-800 rounded-lg p-6">
-                      <p className="text-xl font-semibold mb-2">🍽️ MESA ASIGNADA</p>
-                      <p className="text-4xl font-bold">
+                    <div className="bg-white text-green-800 rounded-lg p-6 border-4 border-green-300">
+                      <p className="text-xl font-bold mb-2">🍽️ MESA ASIGNADA</p>
+                      <p className="text-5xl font-black text-green-900">
                         {validationResult.registration.mesa}
                       </p>
                     </div>
                     
                     {/* Información adicional */}
-                    <div className="bg-green-600 rounded p-4 text-green-100">
-                      <p className="font-semibold">Comprador:</p>
-                      <p className="text-lg">{validationResult.registration.compradorNombre}</p>
+                    <div className="bg-green-700 rounded p-4 text-green-100 border-2 border-green-500">
+                      <p className="font-bold text-white">Comprador:</p>
+                      <p className="text-lg font-medium text-white">{validationResult.registration.compradorNombre}</p>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="bg-red-500 text-white rounded-lg p-8 text-center shadow-2xl">
+              <div className="bg-red-600 text-white rounded-lg p-8 text-center shadow-2xl border-4 border-red-400">
                 <div className="text-8xl mb-6">❌</div>
-                <h2 className="text-4xl font-bold mb-6">
+                <h2 className="text-4xl font-bold mb-6 text-white">
                   ACCESO DENEGADO
                 </h2>
                 
-                <p className="text-red-100 text-xl">
+                <p className="text-red-100 text-xl font-medium">
                   {validationResult.error || 'La entrada no es válida'}
                 </p>
               </div>
@@ -244,7 +244,7 @@ export default function ValidatePage() {
                   setValidationResult(null);
                   setQrData('');
                 }}
-                className="bg-gray-700 text-white py-3 px-6 rounded-full text-lg hover:bg-gray-600 transition-colors"
+                className="bg-gray-600 text-white py-3 px-6 rounded-full text-lg font-bold hover:bg-gray-500 transition-colors border-2 border-gray-500"
               >
                 🔄 Escanear Otra Entrada
               </button>
