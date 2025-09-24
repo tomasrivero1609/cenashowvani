@@ -20,7 +20,13 @@ export default function FlyerGenerator({ data, onFlyerGenerated }: FlyerGenerato
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    generateFlyer();
+    // Agregar delay para evitar problemas de concurrencia en múltiples flyers
+    const delay = Math.random() * 1000; // Delay aleatorio entre 0-1 segundo
+    const timeoutId = setTimeout(() => {
+      generateFlyer();
+    }, delay);
+    
+    return () => clearTimeout(timeoutId);
   }, [data]);
 
   const generateFlyer = async () => {
