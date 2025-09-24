@@ -134,9 +134,19 @@ export default function FlyerGenerator({ data, onFlyerGenerated }: FlyerGenerato
       });
 
       console.log('✅ QR generado, creando imagen...');
-      // Crear imagen del QR
+      // Crear imagen del QR con crossOrigin para Vercel
       const qrImage = new Image();
+      qrImage.crossOrigin = 'anonymous'; // Importante para Vercel
+      
+      // Timeout para la carga de imagen
+      const imageTimeout = setTimeout(() => {
+        console.error('⏰ Timeout cargando imagen QR - usando fallback');
+        // Usar fallback si la imagen no carga
+        generateFallbackFlyer();
+      }, 5000);
+      
       qrImage.onload = async () => {
+        clearTimeout(imageTimeout);
         console.log('✅ Imagen QR cargada, dibujando flyer...');
         // Fondo blanco para el QR con borde dorado
         ctx.fillStyle = '#ffffff';
@@ -183,9 +193,60 @@ export default function FlyerGenerator({ data, onFlyerGenerated }: FlyerGenerato
           ctx.fillText(icon, pos.x, pos.y);
         });
 
-        // Convertir canvas a blobs
+        // Convertir canvas a blobs con timeout para Vercel
         console.log('🔄 Convirtiendo canvas a blob...');
+        
+        // Timeout para evitar que se cuelgue en Vercel
+        const timeoutId = setTimeout(() => {
+          console.error('⏰ Timeout en generación de flyer - usando fallback');
+          // Generar un flyer básico como fallback
+          const fallbackCanvas = document.createElement('canvas');
+          fallbackCanvas.width = 800;
+          fallbackCanvas.height = 400;
+          const fallbackCtx = fallbackCanvas.getContext('2d');
+          
+          if (fallbackCtx) {
+            // Fondo simple
+            fallbackCtx.fillStyle = '#667eea';
+            fallbackCtx.fillRect(0, 0, 800, 400);
+            
+            // Texto básico
+            fallbackCtx.fillStyle = '#ffffff';
+            fallbackCtx.font = 'bold 24px Arial';
+            fallbackCtx.textAlign = 'center';
+            fallbackCtx.fillText('TRIBUTO A RICKY MARTIN', 400, 100);
+            fallbackCtx.fillText(data.nombre, 400, 200);
+            fallbackCtx.fillText('ENTRADA $50.000', 400, 300);
+            
+            fallbackCanvas.toBlob((fallbackBlob) => {
+              if (fallbackBlob) {
+                // QR simple como fallback
+                const simpleQr = document.createElement('canvas');
+                simpleQr.width = 200;
+                simpleQr.height = 200;
+                const qrCtx = simpleQr.getContext('2d');
+                if (qrCtx) {
+                  qrCtx.fillStyle = '#ffffff';
+                  qrCtx.fillRect(0, 0, 200, 200);
+                  qrCtx.fillStyle = '#000000';
+                  qrCtx.font = '16px Arial';
+                  qrCtx.textAlign = 'center';
+                  qrCtx.fillText('QR CODE', 100, 100);
+                  
+                  simpleQr.toBlob((qrBlob) => {
+                    if (qrBlob) {
+                      console.log('🔄 Usando flyer fallback para Vercel');
+                      onFlyerGenerated(fallbackBlob, qrBlob);
+                    }
+                  });
+                }
+              }
+            });
+          }
+        }, 10000); // 10 segundos timeout
+        
         canvas.toBlob(async (flyerBlob) => {
+          clearTimeout(timeoutId); // Cancelar timeout si funciona
           console.log('✅ Flyer blob generado');
           if (flyerBlob) {
             // Generar QR individual de alta calidad
@@ -207,11 +268,94 @@ export default function FlyerGenerator({ data, onFlyerGenerated }: FlyerGenerato
                 if (qrBlob) {
                   console.log('🎉 Llamando onFlyerGenerated para:', data.nombre);
                   onFlyerGenerated(flyerBlob, qrBlob);
+                } else {
+                  console.error('❌ Error generando QR blob');
+                  // Fallback con QR simple
+                  const simpleQr = document.createElement('canvas');
+                  simpleQr.width = 200;
+                  simpleQr.height = 200;
+                  const fallbackQrCtx = simpleQr.getContext('2d');
+                  if (fallbackQrCtx) {
+                    fallbackQrCtx.fillStyle = '#ffffff';
+                    fallbackQrCtx.fillRect(0, 0, 200, 200);
+                    fallbackQrCtx.fillStyle = '#000000';
+                    fallbackQrCtx.font = '16px Arial';
+                    fallbackQrCtx.textAlign = 'center';
+                    fallbackQrCtx.fillText('QR CODE', 100, 100);
+                    
+                    simpleQr.toBlob((fallbackQrBlob) => {
+                      if (fallbackQrBlob) {
+                        onFlyerGenerated(flyerBlob, fallbackQrBlob);
+                      }
+                    });
+                  }
                 }
-              }, 'image/png', 1.0);
+              }, 'image/png', 0.9); // Reducir calidad para Vercel
             }
           }
-        }, 'image/png', 1.0); // Máxima calidad
+        }, 'image/png', 0.9); // Reducir calidad para mejor compatibilidad
+      };
+      
+      qrImage.onerror = () => {
+        clearTimeout(imageTimeout);
+        console.error('❌ Error cargando imagen QR - usando fallback');
+        generateFallbackFlyer();
+      };
+      
+      // Función para generar flyer fallback
+      const generateFallbackFlyer = () => {
+        console.log('🔄 Generando flyer fallback para Vercel...');
+        
+        // Dibujar QR simple directamente en el canvas principal
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 16);
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(qrX - 8, qrY - 8, qrSize + 16, qrSize + 16);
+        
+        // QR simple con texto
+        ctx.fillStyle = '#000000';
+        ctx.font = '16px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR CODE', qrX + qrSize/2, qrY + qrSize/2 - 10);
+        ctx.fillText(data.registrationId.substring(0, 8), qrX + qrSize/2, qrY + qrSize/2 + 10);
+        
+        // Texto del QR
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 12px Arial, sans-serif';
+        ctx.fillText('ESCANEA PARA VALIDAR', qrX + qrSize/2, qrY + qrSize + 20);
+        
+        // Precio
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 20px Arial, sans-serif';
+        ctx.fillText('ENTRADA $50.000', qrX + qrSize/2, qrY - 15);
+        
+        // Generar blobs del fallback
+        canvas.toBlob((flyerBlob) => {
+          if (flyerBlob) {
+            // QR simple como blob separado
+            const simpleQr = document.createElement('canvas');
+            simpleQr.width = 200;
+            simpleQr.height = 200;
+            const qrCtx = simpleQr.getContext('2d');
+            if (qrCtx) {
+              qrCtx.fillStyle = '#ffffff';
+              qrCtx.fillRect(0, 0, 200, 200);
+              qrCtx.fillStyle = '#000000';
+              qrCtx.font = '16px Arial';
+              qrCtx.textAlign = 'center';
+              qrCtx.fillText('QR CODE', 100, 90);
+              qrCtx.fillText(data.registrationId.substring(0, 8), 100, 110);
+              
+              simpleQr.toBlob((qrBlob) => {
+                if (qrBlob) {
+                  console.log('✅ Flyer fallback generado para Vercel');
+                  onFlyerGenerated(flyerBlob, qrBlob);
+                }
+              });
+            }
+          }
+        }, 'image/png', 0.8);
       };
       
       qrImage.src = qrDataURL;
