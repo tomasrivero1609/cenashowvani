@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
-    "@napi-rs/canvas": "^0.1.80",
     "@types/nodemailer": "^7.0.1",
     "@types/qrcode": "^1.5.5",
     "@vercel/kv": "^3.0.0",
+    "canvas": "^3.2.0",
     "next": "15.5.4",
     "nodemailer": "^7.0.6",
     "qr-scanner": "^1.4.2",
