@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
   try {
     const { compradorNombre, compradorEmail, compradorTelefono, invitados } = await request.json();
 
-    // Validación básica
-    if (!compradorNombre || !compradorEmail || !invitados || !Array.isArray(invitados) || invitados.length === 0) {
+    // Validación básica - email ahora es opcional
+    if (!compradorNombre || !invitados || !Array.isArray(invitados) || invitados.length === 0) {
       return NextResponse.json(
         { error: 'Datos del comprador e invitados son requeridos' },
         { status: 400 }
@@ -261,8 +261,8 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Enviar email (solo si están configuradas las credenciales)
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // Enviar email solo si se proporciona email y están configuradas las credenciales
+    if (compradorEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         // Attachments: QR codes individuales + flyers horizontales
         const qrAttachments = qrCodes.map((qr, index) => ({
@@ -291,11 +291,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Preparar archivos para descarga directa - solo flyers horizontales (ya incluyen QR)
+    const downloadFiles: Array<{
+      filename: string;
+      content: string;
+      type: string;
+    }> = [];
+    
+    // Solo agregar flyers horizontales (ya incluyen QR integrado)
+    flyerBuffers.forEach((buffer, index) => {
+      downloadFiles.push({
+        filename: `entrada-${qrCodes[index].nombre.replace(/\s+/g, '-')}.png`,
+        content: buffer.toString('base64'),
+        type: 'image/png'
+      });
+    });
+
     return NextResponse.json({
       success: true,
       message: `${invitados.length} entrada${invitados.length > 1 ? 's' : ''} generada${invitados.length > 1 ? 's' : ''} exitosamente`,
       purchaseId,
       totalTickets: invitados.length,
+      emailSent: !!(compradorEmail && process.env.SMTP_USER && process.env.SMTP_PASS),
+      downloadFiles,
       registrations: registrations.map(r => ({
         id: r.id,
         nombre: r.nombre,

@@ -12,7 +12,7 @@ const guestSchema = z.object({
 const registrationSchema = z.object({
   // Datos del comprador
   compradorNombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-  compradorEmail: z.string().email('Ingresa un email válido'),
+  compradorEmail: z.string().email('Ingresa un email válido').optional().or(z.literal('')),
   compradorTelefono: z.string().min(10, 'El teléfono debe tener al menos 10 dígitos').optional(),
   
   // Lista de invitados
@@ -58,7 +58,24 @@ export default function RegistrationForm() {
 
       if (response.ok) {
         const result = await response.json();
-        setSubmitMessage(`¡Entradas generadas exitosamente! Se han enviado ${data.invitados.length} entradas al email: ${data.compradorEmail}`);
+        
+        // Descargar archivos automáticamente
+        if (result.downloadFiles && result.downloadFiles.length > 0) {
+          result.downloadFiles.forEach((file: any) => {
+            const link = document.createElement('a');
+            link.href = `data:${file.type};base64,${file.content}`;
+            link.download = file.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
+        }
+        
+        const emailMessage = result.emailSent 
+           ? ` También se han enviado al email: ${data.compradorEmail}` 
+           : '';
+         
+         setSubmitMessage(`¡Entradas generadas exitosamente! Se ha descargado 1 entrada por invitado (${data.invitados.length} archivo${data.invitados.length > 1 ? 's' : ''} total).${emailMessage}`);
         reset({ invitados: [{ nombre: '' }] });
       } else {
         setSubmitMessage('Error al generar las entradas. Por favor, intenta nuevamente.');
@@ -93,7 +110,7 @@ export default function RegistrationForm() {
                 {...register('compradorNombre')}
                 type="text"
                 id="compradorNombre"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
                 placeholder="Ej: María González"
               />
               {errors.compradorNombre && (
@@ -103,14 +120,14 @@ export default function RegistrationForm() {
 
             <div>
               <label htmlFor="compradorEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
+                Email (opcional)
               </label>
               <input
                 {...register('compradorEmail')}
                 type="email"
                 id="compradorEmail"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="ejemplo@email.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
+                placeholder="ejemplo@email.com (opcional)"
               />
               {errors.compradorEmail && (
                 <p className="text-red-500 text-sm mt-1">{errors.compradorEmail.message}</p>
@@ -126,7 +143,7 @@ export default function RegistrationForm() {
               {...register('compradorTelefono')}
               type="tel"
               id="compradorTelefono"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
               placeholder="Ej: 1123456789"
             />
             {errors.compradorTelefono && (
@@ -155,7 +172,7 @@ export default function RegistrationForm() {
                   <input
                     {...register(`invitados.${index}.nombre`)}
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                     placeholder={`Nombre y apellido del invitado ${index + 1}`}
                   />
                   {errors.invitados?.[index]?.nombre && (

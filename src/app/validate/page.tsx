@@ -19,7 +19,7 @@ export default function ValidatePage() {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanMode, setScanMode] = useState<'manual' | 'camera'>('manual');
+  const [scanMode, setScanMode] = useState<'manual' | 'camera'>('camera');
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
 
@@ -129,7 +129,7 @@ export default function ValidatePage() {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-            🎭 Validador de Entradas
+            📱 Escáner de Entradas
           </h1>
           <p className="text-center text-gray-600 mb-8">
             Cena Show Vani - 11 de Octubre 2024
@@ -243,33 +243,28 @@ export default function ValidatePage() {
           {validationResult && (
             <div className="mt-8">
               {validationResult.valid ? (
-                <div className="bg-green-100 border border-green-300 rounded-lg p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="text-green-600 text-2xl mr-3">✅</div>
-                    <h3 className="text-lg font-semibold text-green-800">
-                      Entrada Válida
-                    </h3>
-                  </div>
+                <div className="bg-green-500 text-white rounded-lg p-8 text-center">
+                  <div className="text-6xl mb-4">✅</div>
+                  <h2 className="text-3xl font-bold mb-4">
+                    ACCESO PERMITIDO
+                  </h2>
                   
                   {validationResult.registration && (
-                    <div className="space-y-2 text-green-700">
+                    <div className="space-y-2 text-green-100 text-lg">
                       <p><strong>Nombre:</strong> {validationResult.registration.nombre}</p>
                       <p><strong>DNI:</strong> {validationResult.registration.dni}</p>
                       <p><strong>Evento:</strong> {validationResult.registration.evento}</p>
-                      <p><strong>Registrado:</strong> {new Date(validationResult.registration.fechaRegistro).toLocaleString('es-AR')}</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="bg-red-100 border border-red-300 rounded-lg p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="text-red-600 text-2xl mr-3">❌</div>
-                    <h3 className="text-lg font-semibold text-red-800">
-                      Entrada Inválida
-                    </h3>
-                  </div>
+                <div className="bg-red-500 text-white rounded-lg p-8 text-center">
+                  <div className="text-6xl mb-4">❌</div>
+                  <h2 className="text-3xl font-bold mb-4">
+                    ACCESO DENEGADO
+                  </h2>
                   
-                  <p className="text-red-700">
+                  <p className="text-red-100 text-lg">
                     {validationResult.error || 'La entrada no es válida'}
                   </p>
                 </div>
@@ -279,13 +274,12 @@ export default function ValidatePage() {
 
           <div className="mt-8 p-4 bg-blue-50 rounded-lg">
             <h4 className="font-semibold text-blue-800 mb-2">
-              📱 Instrucciones para usar:
+              📱 Instrucciones:
             </h4>
             <ol className="text-blue-700 text-sm space-y-1">
-              <li>1. Escanea el código QR con cualquier app de QR</li>
-              <li>2. Copia el texto resultante</li>
-              <li>3. Pégalo en el campo de arriba</li>
-              <li>4. Haz clic en "Validar Entrada"</li>
+              <li>1. Presiona "Iniciar Escáner" para activar la cámara</li>
+              <li>2. Apunta la cámara al código QR de la entrada</li>
+              <li>3. El sistema validará automáticamente el acceso</li>
             </ol>
           </div>
         </div>
