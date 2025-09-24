@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         compradorEmail,
         compradorTelefono: compradorTelefono || '',
         fechaRegistro: fechaCompra,
-        evento: 'Tributo a Ricky Martin - 11 de Octubre 2024',
+        evento: 'Tributo a Ricky Martin - 11 de Octubre 2025',
         numeroInvitado: i + 1,
         totalInvitados: invitados.length,
         mesa: 'Sin asignar', // Campo para asignación de mesa

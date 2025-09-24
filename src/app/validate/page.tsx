@@ -36,7 +36,7 @@ export default function ValidatePage() {
     try {
       let registrationId = '';
 
-      // Verificar si es el nuevo formato
+      // Verificar si es el formato de QR
       if (qrData.startsWith('TRIBUTO-RICKY-MARTIN-')) {
         registrationId = qrData.replace('TRIBUTO-RICKY-MARTIN-', '');
       } else if (qrData.startsWith('CENA-SHOW-VANI-')) {
