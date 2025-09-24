@@ -29,11 +29,11 @@ export async function generateHorizontalFlyer(data: FlyerData): Promise<Buffer> 
   ctx.lineWidth = 4;
   ctx.strokeRect(10, 10, width - 20, height - 20);
 
-  // Título del evento - SIN EMOJIS, SOLO ARIAL
+  // Título del evento - CON EMOJIS RESTAURADOS
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 36px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('CENA SHOW VANI', width / 2, 60);
+  ctx.fillText('🎭 CENA SHOW VANI', width / 2, 60);
 
   // Fecha del evento
   ctx.font = 'bold 24px Arial';
@@ -47,23 +47,23 @@ export async function generateHorizontalFlyer(data: FlyerData): Promise<Buffer> 
   ctx.lineTo(width - 50, 120);
   ctx.stroke();
 
-  // Información del invitado (lado izquierdo) - SIN EMOJIS
+  // Información del invitado (lado izquierdo) - CON EMOJIS RESTAURADOS
   ctx.textAlign = 'left';
   ctx.font = 'bold 28px Arial';
-  ctx.fillText('ENTRADA PERSONAL', 50, 160);
+  ctx.fillText('🎫 ENTRADA PERSONAL', 50, 160);
   
   ctx.font = 'bold 24px Arial';
-  ctx.fillText(`INVITADO: ${data.nombre}`, 50, 200);
+  ctx.fillText(`👤 ${data.nombre}`, 50, 200);
   
   ctx.font = '18px Arial';
   ctx.fillText(`Entrada ${data.numeroInvitado} de ${data.totalInvitados}`, 50, 230);
   ctx.fillText(`Comprador: ${data.compradorNombre}`, 50, 255);
 
-  // Información adicional - SIN EMOJIS
+  // Información adicional - CON EMOJIS RESTAURADOS
   ctx.font = '16px Arial';
-  ctx.fillText('Incluye: Cena completa + Show + Bebidas', 50, 290);
-  ctx.fillText('Presenta este codigo QR en la entrada', 50, 315);
-  ctx.fillText(`ID: ${data.registrationId.substring(0, 8)}...`, 50, 340);
+  ctx.fillText('✨ Incluye: Cena completa + Show + Bebidas', 50, 290);
+  ctx.fillText('📱 Presenta este codigo QR en la entrada', 50, 315);
+  ctx.fillText(`🆔 ID: ${data.registrationId.substring(0, 8)}...`, 50, 340);
 
   // Generar QR Code (lado derecho)
   const qrSize = 150;

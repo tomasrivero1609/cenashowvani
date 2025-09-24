@@ -228,19 +228,22 @@ export async function POST(request: NextRequest) {
             </div>
 
             <div class="whatsapp-tip">
-               <h3>📱 Para compartir por WhatsApp</h3>
-               <p><strong>¡Importante!</strong> Cada persona debe presentar su código QR individual en la entrada.</p>
-               <p>🎨 <strong>¡NUEVO!</strong> Hemos incluido flyers horizontales optimizados para WhatsApp como archivos adjuntos.</p>
+               <h3>📱 Distribución por WhatsApp - VENDEDOR</h3>
+               <p><strong>¡Hola! Este email es para ti como vendedor.</strong></p>
+               <p>🎨 <strong>Entradas listas para distribuir:</strong> Hemos incluido flyers horizontales optimizados para WhatsApp como archivos adjuntos.</p>
+               <p><strong>Comprador:</strong> ${compradorNombre}</p>
+               <p><strong>Total de entradas:</strong> ${invitados.length}</p>
                <p>Cada invitado tiene:</p>
                <ul>
-                 <li>📧 Su código QR individual (para el email)</li>
-                 <li>🖼️ Su flyer horizontal personalizado (perfecto para WhatsApp)</li>
+                 <li>📧 Su código QR individual (visible arriba)</li>
+                 <li>🖼️ Su flyer horizontal personalizado (archivo adjunto)</li>
                </ul>
-               <p><strong>Instrucciones:</strong></p>
+               <p><strong>Instrucciones para distribución:</strong></p>
                <ol>
                  <li>Descarga los archivos adjuntos de este email</li>
                  <li>Envía el flyer correspondiente a cada invitado por WhatsApp</li>
                  <li>Cada flyer ya incluye el QR code integrado</li>
+                 <li>Confirma que cada persona recibió su entrada</li>
                </ol>
                <p><strong>Mensaje sugerido para WhatsApp:</strong></p>
                <p style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 5px; font-style: italic;">
@@ -261,8 +264,8 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    // Enviar email solo si se proporciona email y están configuradas las credenciales
-    if (compradorEmail && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    // Enviar email al vendedor con todas las entradas generadas
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         // Attachments: QR codes individuales + flyers horizontales
         const qrAttachments = qrCodes.map((qr, index) => ({
@@ -280,8 +283,8 @@ export async function POST(request: NextRequest) {
 
         await transporter.sendMail({
           from: `"Cena Show Vani" <${process.env.SMTP_USER}>`,
-          to: compradorEmail,
-          subject: `🎭 ${invitados.length} Entrada${invitados.length > 1 ? 's' : ''} Cena Show Vani - 11 de Octubre`,
+          to: 'triverodev@gmail.com',
+          subject: `🎭 ${invitados.length} Entrada${invitados.length > 1 ? 's' : ''} Cena Show Vani - 11 de Octubre - Comprador: ${compradorNombre}`,
           html: emailHTML,
           attachments: allAttachments
         });
@@ -309,10 +312,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `${invitados.length} entrada${invitados.length > 1 ? 's' : ''} generada${invitados.length > 1 ? 's' : ''} exitosamente`,
+      message: `${invitados.length} entrada${invitados.length > 1 ? 's' : ''} generada${invitados.length > 1 ? 's' : ''} exitosamente y enviada${invitados.length > 1 ? 's' : ''} al vendedor`,
       purchaseId,
       totalTickets: invitados.length,
-      emailSent: !!(compradorEmail && process.env.SMTP_USER && process.env.SMTP_PASS),
+      emailSent: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
       downloadFiles,
       registrations: registrations.map(r => ({
         id: r.id,
