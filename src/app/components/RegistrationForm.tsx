@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import FlyerGenerator, { FlyerData } from './FlyerGenerator';
 
 const guestSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -24,6 +25,9 @@ type RegistrationData = z.infer<typeof registrationSchema>;
 export default function RegistrationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
+  const [generatedFlyers, setGeneratedFlyers] = useState<{[key: string]: {flyer: Blob, qr: Blob}}>({});
+  const [flyersToGenerate, setFlyersToGenerate] = useState<FlyerData[]>([]);
+  const [currentRegistrations, setCurrentRegistrations] = useState<any[]>([]);
 
   const {
     register,
@@ -45,45 +49,113 @@ export default function RegistrationForm() {
 
   const onSubmit = async (data: RegistrationData) => {
     setIsSubmitting(true);
-    setSubmitMessage('');
+    setSubmitMessage('Generando entradas y flyers...');
+    setGeneratedFlyers({});
 
     try {
+      // Primero crear los registros en el backend
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          generateFlyers: false // Le decimos al backend que no genere flyers
+        }),
       });
 
       if (response.ok) {
         const result = await response.json();
+        setCurrentRegistrations(result.registrations);
         
-        // Descargar archivos automáticamente
-        if (result.downloadFiles && result.downloadFiles.length > 0) {
-          result.downloadFiles.forEach((file: any) => {
-            const link = document.createElement('a');
-            link.href = `data:${file.type};base64,${file.content}`;
-            link.download = file.filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          });
-        }
+        // Preparar datos para generar flyers en el frontend
+        const flyerDataList: FlyerData[] = result.registrations.map((reg: any, index: number) => ({
+          nombre: reg.nombre || data.invitados[index].nombre,
+          registrationId: reg.id,
+          numeroInvitado: reg.numeroInvitado,
+          totalInvitados: data.invitados.length,
+          compradorNombre: data.compradorNombre
+        }));
+
+        setFlyersToGenerate(flyerDataList);
+        setSubmitMessage('Generando flyers de alta calidad...');
         
-        const emailMessage = result.emailSent 
-           ? ` También se han enviado al email: ${data.compradorEmail}` 
-           : '';
-         
-         setSubmitMessage(`¡Entradas generadas exitosamente! Se ha descargado 1 entrada por invitado (${data.invitados.length} archivo${data.invitados.length > 1 ? 's' : ''} total).${emailMessage}`);
-        reset({ invitados: [{ nombre: '' }] });
       } else {
-        setSubmitMessage('Error al generar las entradas. Por favor, intenta nuevamente.');
+        const errorData = await response.json();
+        setSubmitMessage(`Error: ${errorData.error || 'Error al generar las entradas'}`);
+        setIsSubmitting(false);
       }
     } catch (error) {
       setSubmitMessage('Error de conexión. Por favor, intenta nuevamente.');
-    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFlyerGenerated = async (flyerBlob: Blob, qrBlob: Blob, flyerData: FlyerData) => {
+    console.log('📥 Flyer recibido para:', flyerData.nombre);
+    const newFlyers = {
+      ...generatedFlyers,
+      [flyerData.registrationId]: { flyer: flyerBlob, qr: qrBlob }
+    };
+    setGeneratedFlyers(newFlyers);
+    console.log(`📊 Flyers generados: ${Object.keys(newFlyers).length}/${flyersToGenerate.length}`);
+
+    // Verificar si todos los flyers están listos
+      if (Object.keys(newFlyers).length === flyersToGenerate.length) {
+        console.log('🎉 Todos los flyers están listos, procesando descarga...');
+        setSubmitMessage('Finalizando proceso...');
+      
+      try {
+        // Enviar flyers al backend para el email
+        const formData = new FormData();
+        
+        Object.entries(newFlyers).forEach(([regId, blobs], index) => {
+          const flyerData = flyersToGenerate.find(f => f.registrationId === regId);
+          if (flyerData) {
+            formData.append(`flyer_${index}`, blobs.flyer, `flyer-${flyerData.nombre.replace(/\s+/g, '-')}.png`);
+            formData.append(`qr_${index}`, blobs.qr, `qr-${flyerData.nombre.replace(/\s+/g, '-')}.png`);
+            formData.append(`flyerData_${index}`, JSON.stringify(flyerData));
+          }
+        });
+
+        formData.append('registrationIds', JSON.stringify(currentRegistrations.map(r => r.id)));
+        formData.append('purchaseId', currentRegistrations[0]?.purchaseId || '');
+
+        const emailResponse = await fetch('/api/send-flyers', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (emailResponse.ok) {
+          // Descargar flyers automáticamente
+          Object.entries(newFlyers).forEach(([regId, blobs]) => {
+            const flyerData = flyersToGenerate.find(f => f.registrationId === regId);
+            if (flyerData) {
+              // Descargar flyer
+              const flyerUrl = URL.createObjectURL(blobs.flyer);
+              const flyerLink = document.createElement('a');
+              flyerLink.href = flyerUrl;
+              flyerLink.download = `flyer-${flyerData.nombre.replace(/\s+/g, '-')}.png`;
+              document.body.appendChild(flyerLink);
+              flyerLink.click();
+              document.body.removeChild(flyerLink);
+              URL.revokeObjectURL(flyerUrl);
+            }
+          });
+
+          setSubmitMessage(`¡Entradas generadas exitosamente! Se han descargado ${flyersToGenerate.length} flyer${flyersToGenerate.length > 1 ? 's' : ''} de alta calidad.`);
+          reset({ invitados: [{ nombre: '' }] });
+          setFlyersToGenerate([]);
+          setCurrentRegistrations([]);
+        } else {
+          setSubmitMessage('Flyers generados y descargados correctamente.');
+        }
+      } catch (error) {
+          setSubmitMessage('Flyers generados y descargados correctamente.');
+        } finally {
+          setIsSubmitting(false);
+        }
     }
   };
 
@@ -215,6 +287,15 @@ export default function RegistrationForm() {
           {submitMessage}
         </div>
       )}
+
+      {/* Generadores de flyers ocultos */}
+      {flyersToGenerate.map((flyerData) => (
+        <FlyerGenerator
+          key={flyerData.registrationId}
+          data={flyerData}
+          onFlyerGenerated={(flyerBlob, qrBlob) => handleFlyerGenerated(flyerBlob, qrBlob, flyerData)}
+        />
+      ))}
     </div>
   );
 }

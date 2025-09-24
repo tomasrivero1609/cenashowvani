@@ -7,9 +7,13 @@ interface ValidationResult {
   valid: boolean;
   registration?: {
     nombre: string;
-    dni: string;
     evento: string;
     fechaRegistro: string;
+    mesa: string;
+    estado: string;
+    compradorNombre: string;
+    numeroInvitado: number;
+    totalInvitados: number;
   };
   error?: string;
 }
@@ -32,8 +36,10 @@ export default function ValidatePage() {
     try {
       let registrationId = '';
 
-      // Verificar si es el nuevo formato simple
-      if (qrData.startsWith('CENA-SHOW-VANI-')) {
+      // Verificar si es el nuevo formato
+      if (qrData.startsWith('TRIBUTO-RICKY-MARTIN-')) {
+        registrationId = qrData.replace('TRIBUTO-RICKY-MARTIN-', '');
+      } else if (qrData.startsWith('CENA-SHOW-VANI-')) {
         registrationId = qrData.replace('CENA-SHOW-VANI-', '');
       } else {
         // Intentar parsear como JSON (formato anterior)
@@ -245,15 +251,42 @@ export default function ValidatePage() {
               {validationResult.valid ? (
                 <div className="bg-green-500 text-white rounded-lg p-8 text-center">
                   <div className="text-6xl mb-4">✅</div>
-                  <h2 className="text-3xl font-bold mb-4">
+                  <h2 className="text-3xl font-bold mb-6">
                     ACCESO PERMITIDO
                   </h2>
                   
                   {validationResult.registration && (
-                    <div className="space-y-2 text-green-100 text-lg">
-                      <p><strong>Nombre:</strong> {validationResult.registration.nombre}</p>
-                      <p><strong>DNI:</strong> {validationResult.registration.dni}</p>
-                      <p><strong>Evento:</strong> {validationResult.registration.evento}</p>
+                    <div className="space-y-3">
+                      {/* Información principal */}
+                      <div className="bg-green-600 rounded-lg p-4 mb-4">
+                        <p className="text-2xl font-bold">{validationResult.registration.nombre}</p>
+                        <p className="text-green-100">Entrada {validationResult.registration.numeroInvitado} de {validationResult.registration.totalInvitados}</p>
+                      </div>
+                      
+                      {/* Mesa asignada - DESTACADA */}
+                      <div className="bg-white text-green-800 rounded-lg p-6 mb-4">
+                        <p className="text-lg font-semibold mb-2">🍽️ MESA ASIGNADA</p>
+                        <p className="text-3xl font-bold">
+                          {validationResult.registration.mesa}
+                        </p>
+                      </div>
+                      
+                      {/* Información adicional */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-green-100">
+                        <div className="bg-green-600 rounded p-3">
+                          <p className="font-semibold">Comprador:</p>
+                          <p>{validationResult.registration.compradorNombre}</p>
+                        </div>
+                        <div className="bg-green-600 rounded p-3">
+                          <p className="font-semibold">Estado:</p>
+                          <p>{validationResult.registration.estado}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-green-600 rounded p-3 text-green-100">
+                        <p className="font-semibold">Evento:</p>
+                        <p>{validationResult.registration.evento}</p>
+                      </div>
                     </div>
                   )}
                 </div>

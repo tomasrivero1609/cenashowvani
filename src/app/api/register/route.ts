@@ -65,7 +65,7 @@ const transporter = nodemailer.createTransport({
 
 export async function POST(request: NextRequest) {
   try {
-    const { compradorNombre, compradorEmail, compradorTelefono, invitados } = await request.json();
+    const { compradorNombre, compradorEmail, compradorTelefono, invitados, generateFlyers = true } = await request.json();
 
     // Validación básica - email ahora es opcional
     if (!compradorNombre || !invitados || !Array.isArray(invitados) || invitados.length === 0) {
@@ -106,9 +106,11 @@ export async function POST(request: NextRequest) {
         compradorEmail,
         compradorTelefono: compradorTelefono || '',
         fechaRegistro: fechaCompra,
-        evento: 'Cena Show Vani - 11 de Octubre 2024',
+        evento: 'Tributo a Ricky Martin - 11 de Octubre 2024',
         numeroInvitado: i + 1,
         totalInvitados: invitados.length,
+        mesa: 'Sin asignar', // Campo para asignación de mesa
+        estado: 'Activo', // Estado del registro
       };
 
       // Generar código QR individual
@@ -147,21 +149,30 @@ export async function POST(request: NextRequest) {
     
     await kv.set(`purchase:${purchaseId}`, purchaseData);
 
-    // Generar flyers horizontales para cada invitado
-    const flyerDataList: FlyerData[] = registrations.map(reg => ({
-      nombre: reg.nombre,
-      registrationId: reg.id,
-      numeroInvitado: reg.numeroInvitado,
-      totalInvitados: reg.totalInvitados,
-      compradorNombre: reg.compradorNombre,
-    }));
-
+    // Condicional: generar flyers solo si se solicita (para compatibilidad con frontend)
     let flyerBuffers: Buffer[] = [];
-    try {
-      flyerBuffers = await generateMultipleFlyers(flyerDataList);
-    } catch (error) {
-      console.error('Error generando flyers:', error);
-      // Continuar sin flyers si hay error
+    
+    if (generateFlyers) {
+      console.log('Saltando generación de flyers - se generarán en el frontend');
+    } else {
+      console.log('Generación de flyers deshabilitada - solo creando registros');
+    }
+
+    // Si no se generan flyers, solo devolver los datos de registro
+    if (!generateFlyers) {
+      return NextResponse.json({
+        success: true,
+        message: 'Registros creados exitosamente',
+        purchaseId,
+        totalTickets: invitados.length,
+        emailSent: false,
+        registrations: registrations.map(r => ({
+          id: r.id,
+          nombre: r.nombre,
+          numeroInvitado: r.numeroInvitado,
+          purchaseId: purchaseId
+        })),
+      });
     }
 
     // Preparar el email con múltiples entradas
@@ -294,29 +305,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Preparar archivos para descarga directa - solo flyers horizontales (ya incluyen QR)
-    const downloadFiles: Array<{
-      filename: string;
-      content: string;
-      type: string;
-    }> = [];
-    
-    // Solo agregar flyers horizontales (ya incluyen QR integrado)
-    flyerBuffers.forEach((buffer, index) => {
-      downloadFiles.push({
-        filename: `entrada-${qrCodes[index].nombre.replace(/\s+/g, '-')}.png`,
-        content: buffer.toString('base64'),
-        type: 'image/png'
-      });
-    });
-
     return NextResponse.json({
       success: true,
       message: `${invitados.length} entrada${invitados.length > 1 ? 's' : ''} generada${invitados.length > 1 ? 's' : ''} exitosamente y enviada${invitados.length > 1 ? 's' : ''} al vendedor`,
       purchaseId,
       totalTickets: invitados.length,
       emailSent: !!(process.env.SMTP_USER && process.env.SMTP_PASS),
-      downloadFiles,
       registrations: registrations.map(r => ({
         id: r.id,
         nombre: r.nombre,
