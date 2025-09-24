@@ -354,6 +354,8 @@ export async function GET(request: NextRequest) {
           numeroInvitado: registration.numeroInvitado,
           totalInvitados: registration.totalInvitados,
           purchaseId: registration.purchaseId,
+          mesa: registration.mesa || 'Sin asignar', // Agregar campo mesa
+          estado: registration.estado || 'Activo', // Agregar campo estado
         },
       });
     }
